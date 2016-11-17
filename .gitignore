@@ -372,3 +372,6 @@ Session.vim
 # auto-generated tag files
 tags
 
+# tensorflow
+ckpt_dir
+logs

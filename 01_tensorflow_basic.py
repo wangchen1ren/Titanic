@@ -1,7 +1,10 @@
-import numpy as np
 import pandas as pd
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+
+################################
+# Preparing Data
+################################
 
 # read data from file
 data = pd.read_csv('data/train.csv')
@@ -21,12 +24,16 @@ dataset_Y = data[['Survived', 'Deceased']]
 dataset_Y = dataset_Y.as_matrix()
 
 # split training data and validation set data
-X_train, X_test, y_train, y_test = train_test_split(dataset_X, dataset_Y,
-                                                    test_size=0.2,
-                                                    random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(dataset_X, dataset_Y,
+                                                  test_size=0.2,
+                                                  random_state=42)
+
+################################
+# Constructing Dataflow Graph
+################################
 
 # arguments that can be set in command line
-tf.app.flags.DEFINE_integer('epochs', 100, 'Training epochs')
+tf.app.flags.DEFINE_integer('epochs', 10, 'Training epochs')
 FLAGS = tf.app.flags.FLAGS
 
 # create symbolic variables
@@ -48,6 +55,14 @@ cost = tf.reduce_mean(cross_entropy)
 # use gradient descent optimizer to minimize cost
 train_op = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
 
+# calculate accuracy
+correct_pred = tf.equal(tf.argmax(y_true, 1), tf.argmax(y_pred, 1))
+acc_op = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+
+################################
+# Training and Evaluating the model
+################################
+
 # use session to run the calculation
 with tf.Session() as sess:
     # variables have to be initialized at the first place
@@ -65,9 +80,5 @@ with tf.Session() as sess:
         print('Epoch: %04d, loss=%.9f' % (epoch + 1, total_loss))
     print("Training complete!")
 
-    # predict on test set
-    pred = sess.run(y_pred, feed_dict={X: X_test})
-    pred_class = np.argmax(pred, 1)
-    true_class = np.argmax(y_test, 1)
-    accuracy = np.mean(np.equal(pred_class, true_class).astype(np.float32))
-    print("Predict accuracy: %.9f" % accuracy)
+    accuracy = sess.run(acc_op, feed_dict={X: X_val, y_true: y_val})
+    print("Accuracy on validation set: %.9f" % accuracy)
