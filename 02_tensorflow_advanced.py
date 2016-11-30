@@ -21,10 +21,8 @@ data['Sex'] = data['Sex'].apply(lambda s: 1 if s == 'male' else 0)
 data['Deceased'] = data['Survived'].apply(lambda s: 1 - s)
 
 # select features and labels for training
-dataset_X = data[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']]
-dataset_X = dataset_X.as_matrix()
-dataset_Y = data[['Survived', 'Deceased']]
-dataset_Y = dataset_Y.as_matrix()
+dataset_X = data[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']].as_matrix()
+dataset_Y = data[['Deceased', 'Survived']].as_matrix()
 
 # split training data and validation set data
 X_train, X_val, y_train, y_val = train_test_split(dataset_X, dataset_Y,
@@ -37,6 +35,7 @@ X_train, X_val, y_train, y_val = train_test_split(dataset_X, dataset_Y,
 
 # arguments that can be set in command line
 tf.app.flags.DEFINE_integer('epochs', 10, 'Training epochs')
+tf.app.flags.DEFINE_integer('batch_size', 10, 'size of mini-batch')
 FLAGS = tf.app.flags.FLAGS
 
 with tf.name_scope('input'):
@@ -44,7 +43,7 @@ with tf.name_scope('input'):
     X = tf.placeholder(tf.float32, shape=[None, 6])
     y_true = tf.placeholder(tf.float32, shape=[None, 2])
 
-with tf.name_scope('logistic_regression'):
+with tf.name_scope('classifier'):
     # weights and bias are the variables to be trained
     weights = tf.Variable(tf.random_normal([6, 2]))
     bias = tf.Variable(tf.zeros([2]))
@@ -104,11 +103,14 @@ with tf.Session() as sess:
 
     start = global_step.eval()
     # training loop
-    for epoch in range(start, FLAGS.epochs):
+    for epoch in range(start, start + FLAGS.epochs):
         total_loss = 0.
-        for i in range(len(X_train)):
-            # prepare feed data and run
-            feed_dict = {X: [X_train[i]], y_true: [y_train[i]]}
+        for i in range(0, len(X_train), FLAGS.batch_size):
+            # train with mini-batch
+            feed_dict = {
+                X: X_train[i: i + FLAGS.batch_size],
+                y_true: y_train[i: i + FLAGS.batch_size]
+            }
             _, loss = sess.run([train_op, cost], feed_dict=feed_dict)
             total_loss += loss
         # display loss per epoch
@@ -138,9 +140,18 @@ with tf.Session() as sess:
         print('Restoring from checkpoint: %s' % ckpt.model_checkpoint_path)
         saver.restore(sess, ckpt.model_checkpoint_path)
 
+    # predict on test data
+    testdata = pd.read_csv('data/test.csv')
+    testdata = testdata.fillna(0)
+    # convert ['male', 'female'] values of Sex to [1, 0]
+    testdata['Sex'] = testdata['Sex'].apply(lambda s: 1 if s == 'male' else 0)
+    X_test = testdata[['Sex', 'Age', 'Pclass', 'SibSp', 'Parch', 'Fare']]
+
     # predict on test set
-    pred = sess.run(y_pred, feed_dict={X: X_val})
-    pred_class = np.argmax(pred, 1)
-    true_class = np.argmax(y_val, 1)
-    accuracy = np.mean(np.equal(pred_class, true_class).astype(np.float32))
-    print('Predict accuracy: %.9f' % accuracy)
+    predictions = np.argmax(sess.run(y_pred, feed_dict={X: X_test}), 1)
+    submission = pd.DataFrame({
+        "PassengerId": testdata["PassengerId"],
+        "Survived": predictions
+    })
+
+    submission.to_csv("titanic-submission.csv", index=False)

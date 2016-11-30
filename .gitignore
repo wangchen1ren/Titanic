@@ -375,3 +375,4 @@ tags
 # tensorflow
 ckpt_dir
 logs
+*submission.csv
