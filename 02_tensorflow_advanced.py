@@ -50,8 +50,8 @@ with tf.name_scope('classifier'):
     y_pred = tf.nn.softmax(tf.matmul(X, weights) + bias)
 
     # add histogram summaries for weights, view on tensorboard
-    tf.histogram_summary('weights', weights)
-    tf.histogram_summary('bias', bias)
+    tf.summary.histogram('weights', weights)
+    tf.summary.histogram('bias', bias)
 
 # Minimise cost using cross entropy
 # NOTE: add a epsilon(1e-10) when calculate log(y_pred),
@@ -60,7 +60,7 @@ with tf.name_scope('cost'):
     cross_entropy = - tf.reduce_sum(y_true * tf.log(y_pred + 1e-10),
                                     reduction_indices=1)
     cost = tf.reduce_mean(cross_entropy)
-    tf.scalar_summary('loss', cost)
+    tf.summary.scalar('loss', cost)
 
 # use gradient descent optimizer to minimize cost
 train_op = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
@@ -69,7 +69,7 @@ with tf.name_scope('accuracy'):
     correct_pred = tf.equal(tf.argmax(y_true, 1), tf.argmax(y_pred, 1))
     acc_op = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
     # Add scalar summary for accuracy
-    tf.scalar_summary('accuracy', acc_op)
+    tf.summary.scalar('accuracy', acc_op)
 
 global_step = tf.Variable(0, name='global_step', trainable=False)
 # use saver to save and restore model
@@ -89,11 +89,11 @@ if not os.path.exists(ckpt_dir):
 # use session to run the calculation
 with tf.Session() as sess:
     # create a log writer. run 'tensorboard --logdir=./logs'
-    writer = tf.train.SummaryWriter('./logs', sess.graph)
-    merged = tf.merge_all_summaries()
+    writer = tf.summary.FileWriter('./logs', sess.graph)
+    merged = tf.summary.merge_all()
 
     # variables have to be initialized at the first place
-    tf.initialize_all_variables().run()
+    tf.global_variables_initializer().run()
 
     # restore variables from checkpoint if exists
     ckpt = tf.train.get_checkpoint_state(ckpt_dir)
@@ -125,7 +125,6 @@ with tf.Session() as sess:
         global_step.assign(epoch).eval()
         saver.save(sess, ckpt_dir + '/logistic.ckpt',
                    global_step=global_step)
-
     print('Training complete!')
 
 ################################

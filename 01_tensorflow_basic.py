@@ -36,8 +36,8 @@ X = tf.placeholder(tf.float32, shape=[None, 6])
 y = tf.placeholder(tf.float32, shape=[None, 2])
 
 # weights and bias are the variables to be trained
-weights = tf.Variable(tf.random_normal([6, 2]))
-bias = tf.Variable(tf.zeros([2]))
+weights = tf.Variable(tf.random_normal([6, 2]), name='weights')
+bias = tf.Variable(tf.zeros([2]), name='bias')
 y_pred = tf.nn.softmax(tf.matmul(X, weights) + bias)
 
 # Minimise cost using cross entropy
@@ -61,7 +61,7 @@ acc_op = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 # use session to run the calculation
 with tf.Session() as sess:
     # variables have to be initialized at the first place
-    tf.initialize_all_variables().run()
+    tf.global_variables_initializer().run()
 
     # training loop
     for epoch in range(10):

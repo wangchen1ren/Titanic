@@ -1,12 +1,16 @@
+import os
 import re
 
 import pandas as pd
+import tensorflow as tf
 
-train_data = pd.read_csv('data/train.csv')
-# print(train_data.info())
-test_data = pd.read_csv('data/test.csv')
+pjoin = os.path.join
+DATA_DIR = pjoin(os.path.dirname(__file__), 'data')
 
-# NOTE:
+train_data = pd.read_csv(pjoin(DATA_DIR, 'train.csv'))
+test_data = pd.read_csv(pjoin(DATA_DIR, 'test.csv'))
+
+# Translation:
 #  Don: an honorific title used in Spain, Portugal, Italy
 #  Dona: Feminine form for don
 #  Mme: Madame, Mrs
@@ -107,3 +111,42 @@ def get_train_data():
 
 def get_test_data():
     return preprocess(test_data, digest)
+
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def transform_to_tfrecord():
+    data = pd.read_csv(pjoin(DATA_DIR, 'train.csv'))
+    filepath = pjoin(DATA_DIR, 'data.tfrecords')
+    writer = tf.python_io.TFRecordWriter(filepath)
+    for i in range(len(data)):
+        feature = {}
+        for key in data.keys():
+            value = data[key][i]
+            if isinstance(value, int):
+                value = tf.train.Feature(
+                    int64_list=tf.train.Int64List(value=[value]))
+            elif isinstance(value, float):
+                value = tf.train.Feature(
+                    float_list=tf.train.FloatList(value=[value])
+                )
+            elif isinstance(value, str):
+                value = tf.train.Feature(
+                    bytes_list=tf.train.BytesList(
+                        value=[value.encode(encoding="utf-8")])
+                )
+            feature[key] = value
+        example = tf.train.Example(
+            features=tf.train.Features(feature=feature))
+        writer.write(example.SerializeToString())
+    writer.close()
+
+
+if __name__ == '__main__':
+    transform_to_tfrecord()
